@@ -1,0 +1,28 @@
+{
+  "manifest_version": 3,
+  "name": "Chrome Windows Spoof",
+  "version": "0.1.0",
+  "description": "Spoof selected domains as Windows Chrome from macOS Chrome.",
+  "permissions": ["storage", "declarativeNetRequestWithHostAccess"],
+  "host_permissions": ["<all_urls>"],
+  "action": {
+    "default_title": "Windows Spoof",
+    "default_popup": "popup.html"
+  },
+  "background": {
+    "service_worker": "src/background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["src/constants.js", "src/domain-utils.js", "src/content.js"],
+      "run_at": "document_start"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["src/page-spoof.js"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}
