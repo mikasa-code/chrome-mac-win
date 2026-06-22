@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Windows Spoof</title>
+    <link rel="stylesheet" href="styles/popup.css">
+  </head>
+  <body>
+    <main>
+      <h1>Windows Spoof</h1>
+      <form id="domain-form">
+        <label for="domain-input">Domain</label>
+        <div class="entry-row">
+          <input id="domain-input" type="text" autocomplete="off" placeholder="example.com">
+          <button type="submit">Add</button>
+        </div>
+        <p id="domain-error" class="error" role="alert"></p>
+      </form>
+
+      <p id="empty-state" class="empty">No domains added.</p>
+      <ul id="domain-list" class="domain-list"></ul>
+    </main>
+
+    <script src="src/constants.js"></script>
+    <script src="src/domain-utils.js"></script>
+    <script src="src/domain-store.js"></script>
+    <script src="src/popup.js"></script>
+  </body>
+</html>
