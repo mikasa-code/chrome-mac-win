@@ -32,6 +32,71 @@
     "other",
   ];
 
+  function quoteHeaderValue(value) {
+    return "\"" + value + "\"";
+  }
+
+  function formatBrandList(brands) {
+    return brands
+      .map(function (brand) {
+        return quoteHeaderValue(brand.brand) + ";v=" + quoteHeaderValue(brand.version);
+      })
+      .join(", ");
+  }
+
+  function buildRequestHeaders() {
+    var identity = constants.WINDOWS_IDENTITY;
+    var uaData = identity.uaData;
+
+    return [
+      {
+        header: "User-Agent",
+        operation: "set",
+        value: identity.userAgent,
+      },
+      {
+        header: "Sec-CH-UA",
+        operation: "set",
+        value: formatBrandList(uaData.brands),
+      },
+      {
+        header: "Sec-CH-UA-Platform",
+        operation: "set",
+        value: quoteHeaderValue(uaData.platform),
+      },
+      {
+        header: "Sec-CH-UA-Arch",
+        operation: "set",
+        value: quoteHeaderValue(uaData.architecture),
+      },
+      {
+        header: "Sec-CH-UA-Bitness",
+        operation: "set",
+        value: quoteHeaderValue(uaData.bitness),
+      },
+      {
+        header: "Sec-CH-UA-Model",
+        operation: "set",
+        value: quoteHeaderValue(uaData.model),
+      },
+      {
+        header: "Sec-CH-UA-Platform-Version",
+        operation: "set",
+        value: quoteHeaderValue(uaData.platformVersion),
+      },
+      {
+        header: "Sec-CH-UA-Full-Version",
+        operation: "set",
+        value: quoteHeaderValue(uaData.uaFullVersion),
+      },
+      {
+        header: "Sec-CH-UA-Full-Version-List",
+        operation: "set",
+        value: formatBrandList(uaData.fullVersionList),
+      },
+    ];
+  }
+
   function buildDynamicRules(records) {
     if (!Array.isArray(records)) {
       return [];
@@ -55,18 +120,7 @@
         priority: 1,
         action: {
           type: "modifyHeaders",
-          requestHeaders: [
-            {
-              header: "User-Agent",
-              operation: "set",
-              value: constants.WINDOWS_IDENTITY.userAgent,
-            },
-            {
-              header: "Sec-CH-UA-Platform",
-              operation: "set",
-              value: "\"Windows\"",
-            },
-          ],
+          requestHeaders: buildRequestHeaders(),
         },
         condition: {
           urlFilter: domainUtils.toDnrUrlFilter(parsed.domain),

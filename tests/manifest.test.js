@@ -48,6 +48,7 @@ test("manifest defines required MV3 extension wiring", () => {
   assert.deepEqual(manifest.permissions, [
     "storage",
     "declarativeNetRequestWithHostAccess",
+    "scripting",
   ]);
   assert.deepEqual(manifest.host_permissions, ["<all_urls>"]);
   assert.deepEqual(manifest.action, {
@@ -59,22 +60,11 @@ test("manifest defines required MV3 extension wiring", () => {
   });
 });
 
-test("manifest wires content script and page spoof web accessible resource", () => {
+test("manifest relies on dynamic page-world content script registration", () => {
   const manifest = readJson("manifest.json");
 
-  assert.deepEqual(manifest.content_scripts, [
-    {
-      matches: ["<all_urls>"],
-      js: ["src/constants.js", "src/domain-utils.js", "src/content.js"],
-      run_at: "document_start",
-    },
-  ]);
-  assert.deepEqual(manifest.web_accessible_resources, [
-    {
-      resources: ["src/page-spoof.js"],
-      matches: ["<all_urls>"],
-    },
-  ]);
+  assert.equal(manifest.content_scripts, undefined);
+  assert.equal(manifest.web_accessible_resources, undefined);
 });
 
 test("background imports dependencies and listens for extension refresh events", () => {
@@ -85,7 +75,10 @@ test("background imports dependencies and listens for extension refresh events",
     /importScripts\(\s*["']constants\.js["']\s*,\s*["']domain-utils\.js["']\s*,\s*["']rules\.js["']\s*\)/,
   );
   assert.match(source, /self\.ChromeWinSpoofConstants/);
+  assert.match(source, /self\.ChromeWinSpoofDomainUtils/);
   assert.match(source, /self\.ChromeWinSpoofRules/);
+  assert.match(source, /chrome\.scripting\.registerContentScripts/);
+  assert.match(source, /chrome\.scripting\.unregisterContentScripts/);
   assert.match(source, /chrome\.runtime\.onInstalled\.addListener/);
   assert.match(source, /chrome\.runtime\.onStartup\.addListener/);
   assert.match(source, /chrome\.storage\.onChanged\.addListener/);
@@ -113,11 +106,194 @@ test("background event listeners route refresh failures through a catch handler"
   );
 });
 
+test("background registers page spoof script in MAIN world for enabled valid domains", async () => {
+  const source = readText("src/background.js");
+  const listeners = {};
+  const unregisterCalls = [];
+  const registerCalls = [];
+
+  const context = {
+    importScripts() {},
+    self: {
+      ChromeWinSpoofConstants: {
+        STORAGE_KEY: "spoofDomains",
+      },
+      ChromeWinSpoofDomainUtils: require("../src/domain-utils"),
+      ChromeWinSpoofRules: {
+        buildDynamicRules() {
+          return [];
+        },
+      },
+    },
+    console: {
+      error() {},
+    },
+    chrome: {
+      runtime: {
+        onInstalled: {
+          addListener(listener) {
+            listeners.onInstalled = listener;
+          },
+        },
+        onStartup: {
+          addListener(listener) {
+            listeners.onStartup = listener;
+          },
+        },
+      },
+      storage: {
+        local: {
+          async get() {
+            return {
+              spoofDomains: [
+                { domain: "example.com", enabled: true },
+                { domain: "https://App.Example.COM/path", enabled: true },
+                { domain: "example.com", enabled: true },
+                { domain: "disabled.example", enabled: false },
+              ],
+            };
+          },
+        },
+        onChanged: {
+          addListener(listener) {
+            listeners.onChanged = listener;
+          },
+        },
+      },
+      declarativeNetRequest: {
+        async getDynamicRules() {
+          return [];
+        },
+        async updateDynamicRules() {},
+      },
+      scripting: {
+        async unregisterContentScripts(options) {
+          unregisterCalls.push(options);
+        },
+        async registerContentScripts(scripts) {
+          registerCalls.push(scripts);
+        },
+      },
+    },
+  };
+
+  vm.runInNewContext(source, context);
+
+  listeners.onInstalled();
+
+  await waitFor(() => registerCalls.length === 1);
+
+  assert.deepEqual(JSON.parse(JSON.stringify(unregisterCalls)), [
+    { ids: ["chrome-windows-spoof-page"] },
+  ]);
+  assert.deepEqual(JSON.parse(JSON.stringify(registerCalls)), [
+    [
+      {
+        id: "chrome-windows-spoof-page",
+        matches: [
+          "*://example.com/*",
+          "*://*.example.com/*",
+          "*://app.example.com/*",
+          "*://*.app.example.com/*",
+        ],
+        js: ["src/page-spoof.js"],
+        runAt: "document_start",
+        allFrames: true,
+        world: "MAIN",
+      },
+    ],
+  ]);
+});
+
+test("background unregisters and skips registration when no valid enabled domains remain", async () => {
+  const source = readText("src/background.js");
+  const listeners = {};
+  const unregisterCalls = [];
+  const registerCalls = [];
+
+  const context = {
+    importScripts() {},
+    self: {
+      ChromeWinSpoofConstants: {
+        STORAGE_KEY: "spoofDomains",
+      },
+      ChromeWinSpoofDomainUtils: require("../src/domain-utils"),
+      ChromeWinSpoofRules: {
+        buildDynamicRules() {
+          return [];
+        },
+      },
+    },
+    console: {
+      error() {},
+    },
+    chrome: {
+      runtime: {
+        onInstalled: {
+          addListener(listener) {
+            listeners.onInstalled = listener;
+          },
+        },
+        onStartup: {
+          addListener(listener) {
+            listeners.onStartup = listener;
+          },
+        },
+      },
+      storage: {
+        local: {
+          async get() {
+            return {
+              spoofDomains: [
+                { domain: "example.com", enabled: false },
+                { domain: "*.example.com", enabled: true },
+                { domain: "localhost", enabled: true },
+              ],
+            };
+          },
+        },
+        onChanged: {
+          addListener(listener) {
+            listeners.onChanged = listener;
+          },
+        },
+      },
+      declarativeNetRequest: {
+        async getDynamicRules() {
+          return [];
+        },
+        async updateDynamicRules() {},
+      },
+      scripting: {
+        async unregisterContentScripts(options) {
+          unregisterCalls.push(options);
+        },
+        async registerContentScripts(scripts) {
+          registerCalls.push(scripts);
+        },
+      },
+    },
+  };
+
+  vm.runInNewContext(source, context);
+
+  listeners.onInstalled();
+
+  await waitFor(() => unregisterCalls.length === 1);
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.deepEqual(JSON.parse(JSON.stringify(unregisterCalls)), [
+    { ids: ["chrome-windows-spoof-page"] },
+  ]);
+  assert.deepEqual(registerCalls, []);
+});
+
 test("background serializes queued refreshes so latest storage wins", async () => {
   const source = readText("src/background.js");
   const listeners = {};
   const firstUpdate = deferred();
   const updateCalls = [];
+  const registerCalls = [];
   const storageSnapshots = [
     [{ domain: "stale.example", enabled: true }],
     [{ domain: "latest.example", enabled: true }],
@@ -132,6 +308,7 @@ test("background serializes queued refreshes so latest storage wins", async () =
       ChromeWinSpoofConstants: {
         STORAGE_KEY: "spoofDomains",
       },
+      ChromeWinSpoofDomainUtils: require("../src/domain-utils"),
       ChromeWinSpoofRules: {
         buildDynamicRules(records) {
           return records.map((record) => ({ domain: record.domain }));
@@ -190,6 +367,12 @@ test("background serializes queued refreshes so latest storage wins", async () =
           return Promise.resolve();
         },
       },
+      scripting: {
+        async unregisterContentScripts() {},
+        async registerContentScripts(scripts) {
+          registerCalls.push(scripts);
+        },
+      },
     },
   };
 
@@ -209,4 +392,9 @@ test("background serializes queued refreshes so latest storage wins", async () =
   await waitFor(() => updateCalls.length === 2);
   assert.equal(overlappingUpdates, false);
   assert.deepEqual(appliedRules, [{ domain: "latest.example" }]);
+  assert.equal(registerCalls.length, 2);
+  assert.deepEqual(JSON.parse(JSON.stringify(registerCalls[1][0].matches)), [
+    "*://latest.example/*",
+    "*://*.latest.example/*",
+  ]);
 });

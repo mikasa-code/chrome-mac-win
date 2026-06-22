@@ -21,6 +21,20 @@ const EXPECTED_RESOURCE_TYPES = [
   "object",
   "other",
 ];
+const EXPECTED_BRANDS = [
+  { brand: "Not/A)Brand", version: "8" },
+  { brand: "Chromium", version: "126" },
+  { brand: "Google Chrome", version: "126" },
+];
+const EXPECTED_FULL_VERSION_LIST = [
+  { brand: "Not/A)Brand", version: "8.0.0.0" },
+  { brand: "Chromium", version: "126.0.0.0" },
+  { brand: "Google Chrome", version: "126.0.0.0" },
+];
+const EXPECTED_SEC_CH_UA =
+  "\"Not/A)Brand\";v=\"8\", \"Chromium\";v=\"126\", \"Google Chrome\";v=\"126\"";
+const EXPECTED_SEC_CH_UA_FULL_VERSION_LIST =
+  "\"Not/A)Brand\";v=\"8.0.0.0\", \"Chromium\";v=\"126.0.0.0\", \"Google Chrome\";v=\"126.0.0.0\"";
 
 test("exports storage key and Windows identity constants", () => {
   assert.equal(STORAGE_KEY, "spoofDomains");
@@ -37,6 +51,8 @@ test("exports storage key and Windows identity constants", () => {
       model: "",
       platformVersion: "15.0.0",
       uaFullVersion: "126.0.0.0",
+      brands: EXPECTED_BRANDS,
+      fullVersionList: EXPECTED_FULL_VERSION_LIST,
     },
   });
 });
@@ -89,9 +105,44 @@ test("request headers exactly match Windows identity constants", () => {
       value: WINDOWS_IDENTITY.userAgent,
     },
     {
+      header: "Sec-CH-UA",
+      operation: "set",
+      value: EXPECTED_SEC_CH_UA,
+    },
+    {
       header: "Sec-CH-UA-Platform",
       operation: "set",
       value: "\"Windows\"",
+    },
+    {
+      header: "Sec-CH-UA-Arch",
+      operation: "set",
+      value: "\"x86\"",
+    },
+    {
+      header: "Sec-CH-UA-Bitness",
+      operation: "set",
+      value: "\"64\"",
+    },
+    {
+      header: "Sec-CH-UA-Model",
+      operation: "set",
+      value: "\"\"",
+    },
+    {
+      header: "Sec-CH-UA-Platform-Version",
+      operation: "set",
+      value: "\"15.0.0\"",
+    },
+    {
+      header: "Sec-CH-UA-Full-Version",
+      operation: "set",
+      value: "\"126.0.0.0\"",
+    },
+    {
+      header: "Sec-CH-UA-Full-Version-List",
+      operation: "set",
+      value: EXPECTED_SEC_CH_UA_FULL_VERSION_LIST,
     },
   ]);
 });

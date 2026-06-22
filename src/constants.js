@@ -20,6 +20,16 @@
       model: "",
       platformVersion: "15.0.0",
       uaFullVersion: "126.0.0.0",
+      brands: [
+        { brand: "Not/A)Brand", version: "8" },
+        { brand: "Chromium", version: "126" },
+        { brand: "Google Chrome", version: "126" },
+      ],
+      fullVersionList: [
+        { brand: "Not/A)Brand", version: "8.0.0.0" },
+        { brand: "Chromium", version: "126.0.0.0" },
+        { brand: "Google Chrome", version: "126.0.0.0" },
+      ],
     },
   };
 
