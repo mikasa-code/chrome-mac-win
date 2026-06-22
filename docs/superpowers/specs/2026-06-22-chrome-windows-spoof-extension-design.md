@@ -53,11 +53,11 @@ Defines a Chrome Manifest V3 extension with:
 
 - `storage` permission for saved domain settings.
 - `declarativeNetRequestWithHostAccess` permission for request header modification.
-- `scripting` permission for early page-world script injection.
 - Host access for all URLs, with actual behavior restricted by the user-managed domain list.
 - A browser action popup for domain management.
 - A service worker background script.
 - A content script that runs at `document_start`.
+- A `web_accessible_resources` entry for `src/page-spoof.js`, so matching pages can load the injected page-world script.
 
 ### `src/domain-utils.js`
 
@@ -97,7 +97,7 @@ Runs at `document_start` on all pages:
 
 - Reads configured domains from `chrome.storage.local`.
 - Checks whether `window.location.hostname` matches any configured domain.
-- If matched, injects `src/page-spoof.js` into the page main world using `chrome.scripting.executeScript`.
+- If matched, injects `src/page-spoof.js` into the page main world by appending a `<script>` element whose source is `chrome.runtime.getURL("src/page-spoof.js")`.
 
 The content script does not spoof anything on non-matching domains.
 
@@ -164,7 +164,7 @@ The Chrome version is intentionally fixed for the first version to keep the impl
 5. The background service worker rebuilds dynamic DNR rules for enabled domains.
 6. Future requests to `example.com` and subdomains receive Windows request headers.
 7. On matching pages, `src/content.js` runs at `document_start`.
-8. The content script injects `src/page-spoof.js`.
+8. The content script appends a script element that loads `src/page-spoof.js` from the extension's web-accessible resources.
 9. Page scripts see Windows values when reading common `navigator` identity fields.
 
 ## Validation Rules
